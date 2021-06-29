@@ -28,15 +28,17 @@ eddy-gpu has the following command line parameters:
 
 ```-mp``` maximum number of parents for each node
 
-```-p``` pvalue threshold for divergence significance testing. [default = 0.05]
+```-pD``` pvalue threshold for divergence significance testing (DDN). [default = 0.10]
+
+```-pE``` pvalue threshold for edge significance. [default = 0.05]
 
 ```-r``` number of permutations for statistical significance testing. [default = 100]
 
 ```-pw``` the prior knowledge weight
 
-```-t``` theta for edge threshold
+```-t``` theta for edge threshold.  This is to be deprecated.  Use -pE instead.
 
-```-l``` lambda for edge threshold
+```-l``` lambda for edge threshold.  This is to be deprecated.  Use -pE instead.
 
 Example command:
 ```./eddy -d input200.txt -c NKFB200.txt -g geneset40.txt -r 100 -mp 3 -pw .5 -p .05```
