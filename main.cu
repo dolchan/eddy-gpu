@@ -233,7 +233,8 @@ int main(int argc, char *argv[]) {
   }
 
   // allocate memory for file reads
-  char buf[MAX_BUFSIZE];
+  //char buf[MAX_BUFSIZE];
+  char *buf, ch;
   char sampleNames[MAX_NUM_SAMPLES][MAX_LENGTH_NAME];
   char classNames[MAX_NUM_SAMPLES][MAX_LENGTH_NAME];
   char genesetGenes[MAX_GENESET_SIZE][MAX_LENGTH_NAME];
@@ -242,6 +243,7 @@ int main(int argc, char *argv[]) {
   char geneNames[MAX_NUM_GENES][MAX_LENGTH_NAME];
   int genesetIndexIntoData[MAX_GENESET_SIZE];
 
+  int firstlinecharcount=0;
   int numSamples = 0;
   int numGenes = 0, genesetLength = 0;
   int numClass1, numClass2;
@@ -252,8 +254,17 @@ int main(int argc, char *argv[]) {
   int *transferData2;
   char *token;
 
+  // determine length of first line
+  while ((ch=getc(fpExpr)) != '\n') {                                             
+      firstlinecharcount++;                                                       
+  } 
+
+  fseek(fpExpr, 0, 0);
+
+  buf = (char *)malloc(firstlinecharcount * sizeof(char));
+
   // loads expression file into buffer
-  fgets(buf, sizeof(buf), fpExpr);
+  fgets(buf, sizeof(buf)*firstlinecharcount, fpExpr);
   token = strtok(buf, "\t");
   token = strtok(NULL, "\t");
 
@@ -273,7 +284,7 @@ int main(int argc, char *argv[]) {
 
   printf("%d samples\n", numSamples);
 
-  while (fgets(buf, sizeof(buf), fpExpr)) {
+  while (fgets(buf, sizeof(buf)*firstlinecharcount, fpExpr)) {
     token = strtok(buf, "\t");
     strcpy(geneNames[numGenes], token);
     //    printf("%s\n", genenames[numgenes]);
@@ -287,9 +298,9 @@ int main(int argc, char *argv[]) {
   // reset file position to 0
   fseek(fpExpr, 0, 0);
   // Skip first line
-  fgets(buf, sizeof(buf), fpExpr);
+  fgets(buf, sizeof(buf)*firstlinecharcount, fpExpr);
   for (i = 0; i < numGenes; i++) {
-    fgets(buf, sizeof(buf), fpExpr);
+    fgets(buf, sizeof(buf)*firstlinecharcount, fpExpr);
     token = strtok(buf, "\t");
     for (j = 0; j < numSamples; j++) {
       token = strtok(NULL, "\t");
@@ -300,7 +311,7 @@ int main(int argc, char *argv[]) {
 
   fclose(fpExpr);
 
-  fgets(buf, sizeof(buf), fpClass);
+  fgets(buf, sizeof(buf)*firstlinecharcount, fpClass);
   token = strtok(buf, "\t");
   for (i = 0; i < numSamples; i++) {
     strcpy(classNames[i], token);
@@ -356,7 +367,7 @@ int main(int argc, char *argv[]) {
 
   // fprintf(results, "%s\t%s\t%s\t\n", class2, "JS", "P");
   fprintf(fpResults, "Pathway\tJS\tPval\tnGenes\n");
-  while (fgets(buf, sizeof(buf), fpGeneSet)) {
+  while (fgets(buf, sizeof(buf)*firstlinecharcount, fpGeneSet)) {
     // check if beginning of file is newline
     if (buf[0] == '\n') {
       continue;
