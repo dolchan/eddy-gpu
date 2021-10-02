@@ -234,7 +234,7 @@ int main(int argc, char *argv[]) {
 
   // allocate memory for file reads
   //char buf[MAX_BUFSIZE];
-  char *buf, ch;
+  char *buf, *buf2,ch;
   char sampleNames[MAX_NUM_SAMPLES][MAX_LENGTH_NAME];
   char classNames[MAX_NUM_SAMPLES][MAX_LENGTH_NAME];
   char genesetGenes[MAX_GENESET_SIZE][MAX_LENGTH_NAME];
@@ -310,9 +310,15 @@ int main(int argc, char *argv[]) {
   }
 
   fclose(fpExpr);
+  firstlinecharcount=0;
+  while ((ch=getc(fpClass)) != '\n') {                                             
+      firstlinecharcount++;                                                       
+  } 
+  fseek(fpClass, 0, 0); 
 
-  fgets(buf, sizeof(buf)*firstlinecharcount, fpClass);
-  token = strtok(buf, "\t");
+  buf2 = (char *)malloc(firstlinecharcount * sizeof(char));
+  fgets(buf2, sizeof(buf2)*firstlinecharcount, fpClass);
+  token = strtok(buf2, "\t");
   for (i = 0; i < numSamples; i++) {
     strcpy(classNames[i], token);
     token = strtok(NULL, "\t");
