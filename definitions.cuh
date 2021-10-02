@@ -14,10 +14,10 @@ const char DIR[20] = "PRIORS/";
 #define HANDLE_ERROR(err) (HandleError(err, __FILE__, __LINE__))
 
 // some global constants
-const int MAX_NUM_SAMPLES = 20000;
+const int MAX_NUM_SAMPLES = 26000;
 const int MAX_LENGTH_NAME = 50; // this could be sample, class or gene name
 const int MAX_GENESET_SIZE = 200;
-const int MAX_BUFSIZE = 1500000;  // this is used to read some data stream
+const int MAX_BUFSIZE = 7481;  // this is used to read some data stream
 const int MAX_NUM_GENES = 20500;  // assume we will use gene level data (gene
                                   // symbols or entrez gene ids)
 
