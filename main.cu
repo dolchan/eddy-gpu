@@ -264,7 +264,7 @@ int main(int argc, char *argv[]) {
   buf = (char *)malloc(firstlinecharcount * sizeof(char));
 
   // loads expression file into buffer
-  fgets(buf, sizeof(buf)*firstlinecharcount, fpExpr);
+  fgets(buf, firstlinecharcount, fpExpr);
   token = strtok(buf, "\t");
   token = strtok(NULL, "\t");
 
@@ -284,7 +284,7 @@ int main(int argc, char *argv[]) {
 
   printf("%d samples\n", numSamples);
 
-  while (fgets(buf, sizeof(buf)*firstlinecharcount, fpExpr)) {
+  while (fgets(buf, firstlinecharcount, fpExpr)) {
     token = strtok(buf, "\t");
     strcpy(geneNames[numGenes], token);
     //    printf("%s\n", genenames[numgenes]);
@@ -298,9 +298,10 @@ int main(int argc, char *argv[]) {
   // reset file position to 0
   fseek(fpExpr, 0, 0);
   // Skip first line
-  fgets(buf, sizeof(buf)*firstlinecharcount, fpExpr);
+  fgets(buf, firstlinecharcount, fpExpr);
+  fgets(buf, firstlinecharcount, fpExpr);
   for (i = 0; i < numGenes; i++) {
-    fgets(buf, sizeof(buf)*firstlinecharcount, fpExpr);
+    fgets(buf, firstlinecharcount, fpExpr);
     token = strtok(buf, "\t");
     for (j = 0; j < numSamples; j++) {
       token = strtok(NULL, "\t");
@@ -316,8 +317,8 @@ int main(int argc, char *argv[]) {
   } 
   fseek(fpClass, 0, 0); 
 
-  buf2 = (char *)malloc(firstlinecharcount * sizeof(char));
-  fgets(buf2, sizeof(buf2)*firstlinecharcount, fpClass);
+  buf2 = (char *)malloc((firstlinecharcount+1) * sizeof(char));
+  fgets(buf2, firstlinecharcount+1, fpClass);
   token = strtok(buf2, "\t");
   for (i = 0; i < numSamples; i++) {
     strcpy(classNames[i], token);
@@ -373,7 +374,7 @@ int main(int argc, char *argv[]) {
 
   // fprintf(results, "%s\t%s\t%s\t\n", class2, "JS", "P");
   fprintf(fpResults, "Pathway\tJS\tPval\tnGenes\n");
-  while (fgets(buf, sizeof(buf)*firstlinecharcount, fpGeneSet)) {
+  while (fgets(buf, firstlinecharcount, fpGeneSet)) {
     // check if beginning of file is newline
     if (buf[0] == '\n') {
       continue;
