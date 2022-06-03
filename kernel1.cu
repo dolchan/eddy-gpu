@@ -87,35 +87,42 @@ __device__ double sumrtime(const int offset, const int len, int *data, int *spc,
     if ((skipper != 0) && (k1 == skipper - 1)) {
       continue;
     }
+
     // place tally for each occurence in observed contingency table
-    if ((data[(spc[idx] * len) + k1] == -1) &&
-        (data[(fr[idx] * len) + k1] == -1)) {
-      tally[0][0]++;
-    } else if ((data[spc[idx] * len + k1] == -1) &&
-               (data[fr[idx] * len + k1] == 0)) {
-      tally[0][1]++;
-    } else if ((data[spc[idx] * len + k1] == -1) &&
-               (data[fr[idx] * len + k1] == 1)) {
-      tally[0][2]++;
-    } else if ((data[spc[idx] * len + k1] == 0) &&
-               (data[fr[idx] * len + k1] == -1)) {
-      tally[1][0]++;
-    } else if ((data[spc[idx] * len + k1] == 0) &&
-               (data[fr[idx] * len + k1] == 0)) {
-      tally[1][1]++;
-    } else if ((data[spc[idx] * len + k1] == 0) &&
-               (data[fr[idx] * len + k1] == 1)) {
-      tally[1][2]++;
-    } else if ((data[spc[idx] * len + k1] == 1) &&
-               (data[fr[idx] * len + k1] == -1)) {
-      tally[2][0]++;
-    } else if ((data[spc[idx] * len + k1] == 1) &&
-               (data[fr[idx] * len + k1] == 0)) {
-      tally[2][1]++;
-    } else if ((data[spc[idx] * len + k1] == 1) &&
-               (data[fr[idx] * len + k1] == 1)) {
-      tally[2][2]++;
-    }
+    //
+    // this will break if row_idx or col_idx goes out of bounds [0..2]
+    int row_idx = data[(spc[idx] * len) + k1] + 1;
+    int col_idx = data[(fr[idx] * len) + k1] + 1;
+    tally[row_idx][col_idx]++;
+
+    // if ((data[(spc[idx] * len) + k1] == -1) &&
+    //     (data[(fr[idx] * len) + k1] == -1)) {
+    //   tally[0][0]++;
+    // } else if ((data[spc[idx] * len + k1] == -1) &&
+    //            (data[fr[idx] * len + k1] == 0)) {
+    //   tally[0][1]++;
+    // } else if ((data[spc[idx] * len + k1] == -1) &&
+    //            (data[fr[idx] * len + k1] == 1)) {
+    //   tally[0][2]++;
+    // } else if ((data[spc[idx] * len + k1] == 0) &&
+    //            (data[fr[idx] * len + k1] == -1)) {
+    //   tally[1][0]++;
+    // } else if ((data[spc[idx] * len + k1] == 0) &&
+    //            (data[fr[idx] * len + k1] == 0)) {
+    //   tally[1][1]++;
+    // } else if ((data[spc[idx] * len + k1] == 0) &&
+    //            (data[fr[idx] * len + k1] == 1)) {
+    //   tally[1][2]++;
+    // } else if ((data[spc[idx] * len + k1] == 1) &&
+    //            (data[fr[idx] * len + k1] == -1)) {
+    //   tally[2][0]++;
+    // } else if ((data[spc[idx] * len + k1] == 1) &&
+    //            (data[fr[idx] * len + k1] == 0)) {
+    //   tally[2][1]++;
+    // } else if ((data[spc[idx] * len + k1] == 1) &&
+    //            (data[fr[idx] * len + k1] == 1)) {
+    //   tally[2][2]++;
+    // }
   }
 
   // summation of rows and columns for chi squared table
@@ -218,34 +225,40 @@ __device__ double sumrtimeScalable(const int offset, const int len, int *data,
       continue;
     }
     // place tally for each occurence in observed contingency table
-    if ((data[(spc[idx] * len) + k1] == -1) &&
-        (data[(fr[idx] * len) + k1] == -1)) {
-      tally[0][0]++;
-    } else if ((data[spc[idx] * len + k1] == -1) &&
-               (data[fr[idx] * len + k1] == 0)) {
-      tally[0][1]++;
-    } else if ((data[spc[idx] * len + k1] == -1) &&
-               (data[fr[idx] * len + k1] == 1)) {
-      tally[0][2]++;
-    } else if ((data[spc[idx] * len + k1] == 0) &&
-               (data[fr[idx] * len + k1] == -1)) {
-      tally[1][0]++;
-    } else if ((data[spc[idx] * len + k1] == 0) &&
-               (data[fr[idx] * len + k1] == 0)) {
-      tally[1][1]++;
-    } else if ((data[spc[idx] * len + k1] == 0) &&
-               (data[fr[idx] * len + k1] == 1)) {
-      tally[1][2]++;
-    } else if ((data[spc[idx] * len + k1] == 1) &&
-               (data[fr[idx] * len + k1] == -1)) {
-      tally[2][0]++;
-    } else if ((data[spc[idx] * len + k1] == 1) &&
-               (data[fr[idx] * len + k1] == 0)) {
-      tally[2][1]++;
-    } else if ((data[spc[idx] * len + k1] == 1) &&
-               (data[fr[idx] * len + k1] == 1)) {
-      tally[2][2]++;
-    }
+    //
+    // this will break if row_idx or col_idx goes out of bounds [0..2]
+    int row_idx = data[(spc[idx] * len) + k1] + 1;
+    int col_idx = data[(fr[idx] * len) + k1] + 1;
+    tally[row_idx][col_idx]++;
+    
+    // if ((data[(spc[idx] * len) + k1] == -1) &&
+    //     (data[(fr[idx] * len) + k1] == -1)) {
+    //   tally[0][0]++;
+    // } else if ((data[spc[idx] * len + k1] == -1) &&
+    //            (data[fr[idx] * len + k1] == 0)) {
+    //   tally[0][1]++;
+    // } else if ((data[spc[idx] * len + k1] == -1) &&
+    //            (data[fr[idx] * len + k1] == 1)) {
+    //   tally[0][2]++;
+    // } else if ((data[spc[idx] * len + k1] == 0) &&
+    //            (data[fr[idx] * len + k1] == -1)) {
+    //   tally[1][0]++;
+    // } else if ((data[spc[idx] * len + k1] == 0) &&
+    //            (data[fr[idx] * len + k1] == 0)) {
+    //   tally[1][1]++;
+    // } else if ((data[spc[idx] * len + k1] == 0) &&
+    //            (data[fr[idx] * len + k1] == 1)) {
+    //   tally[1][2]++;
+    // } else if ((data[spc[idx] * len + k1] == 1) &&
+    //            (data[fr[idx] * len + k1] == -1)) {
+    //   tally[2][0]++;
+    // } else if ((data[spc[idx] * len + k1] == 1) &&
+    //            (data[fr[idx] * len + k1] == 0)) {
+    //   tally[2][1]++;
+    // } else if ((data[spc[idx] * len + k1] == 1) &&
+    //            (data[fr[idx] * len + k1] == 1)) {
+    //   tally[2][2]++;
+    // }
   }
 
   // summation of rows and columns for chi squared table
