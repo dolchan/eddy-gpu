@@ -17,12 +17,31 @@
 
 #include "definitions.cuh"
 
+
 // Error handling for CUDA errors
 static void HandleError(cudaError_t err, const char *file, int line) {
   if (err != cudaSuccess) {
     printf("%s in %s at line %d\n", cudaGetErrorString(err), file, line);
     exit(EXIT_FAILURE);
   }
+}
+
+
+void printHelpMessage() {
+  printf("Required arguments:\n"
+         "  -d input.txt\n"
+         "  -c classfile.txt\n"
+         "  -g geneset.txt (GMT format)\n\n"
+         "Optional arguments:\n"
+         "  -mp {integer} (# of parents)\n"
+         "  -p {float} (pvalue for DDN significance testing)\n"
+         "  -r {integer} (number of permutations)\n"
+         "  -pw {float} (prior weight = [0, 1])\n"
+         "  -rawp (if set, no multiple testing; Bonferroni correction otherwise)\n"
+         "  -pE {float} (p threshold value for edge signficance, default = 0.05)\n"
+         "  -pD {float} (p threshold value for DDN, default = 0.05)\n"
+         "  -randseed {integer} (a random seed; if set to -1, time will be used\n\n"
+         );
 }
 
 int main(int argc, char *argv[]) {
@@ -63,6 +82,9 @@ int main(int argc, char *argv[]) {
   // *************************************************************************************
   // command line arguments
   // parser--------------------------------------------------------------------------
+
+  // Random Seed
+  int random_seed = 0;  // default see;  if set to -1, random seed will be set to time.
 
   // gene expression ternary or binary valued data
   // the first column is gene id, and the first line is sample ids
@@ -115,7 +137,14 @@ int main(int argc, char *argv[]) {
   //-t for theta (to be deprecated)
   //-l for lambda (to be deprecated)
   //-pw prior weight = [0,1]
+  //-randseed random seed
   // loop through argv, determining location of each arg parameter
+
+  if (argc < 2) {
+    printHelpMessage();
+    exit(EXIT_FAILURE);
+  }
+
   for (int i = 1; i < argc; i++) {
     if (strcmp(argv[i], "-d") == 0)
       inputFile = argv[i + 1];
@@ -129,10 +158,6 @@ int main(int argc, char *argv[]) {
       theta = atof(argv[i + 1]);
     else if (strcmp(argv[i], "-mp") == 0)
       parentCap = atoi(argv[i + 1]);
-    else if (strcmp(argv[i], "-help") == 0 || strcmp(argv[i], "--help") == 0)
-      printf("Required arguments : \n -d input.txt\n -c classfile.txt\n -g "
-             "geneset.txt -mp # of parents\n -p pvalue for DDN significance "
-             "testing\n");
     else if (strcmp(argv[i], "-r") == 0)
       perms = atoi(argv[i + 1]);
     else if (strcmp(argv[i], "-pw") == 0 || strcmp(argv[i], "pW") == 0)
@@ -143,6 +168,10 @@ int main(int argc, char *argv[]) {
       flag_pAdjust = false;
     else if (strcmp(argv[i], "-pD") == 0)
       alphaDDN = atof(argv[i + 1]);
+    else if (strcmp(argv[i], "-randseed") == 0)
+      random_seed = atoi(argv[i + 1]);
+    else if (strcmp(argv[i], "-help") == 0 || strcmp(argv[i], "--help") == 0)
+      printHelpMessage();
   }
 
   // set to defaults if no arguments are included
@@ -198,6 +227,9 @@ int main(int argc, char *argv[]) {
 
   // multiple testing correction
   printf("Multiple testing correction (edge detection) : %s\n", flag_pAdjust ? "true" : "false");
+
+  // multiple testing correction
+  printf("Random seed : %d\n", random_seed);
 
   // to be deprecated in the future
   printf("[to be deprecated] lambda : %f, theta : %f\n", lambda, theta);
@@ -765,7 +797,7 @@ int main(int argc, char *argv[]) {
         int BPN = ceil((c * 1.0) / MAX_THREADS);
         int TPB = ceil((c * 1.0) / BPN);
 
- 	printf("C (g*G/2) = %d\n",c);
+ 	      printf("C (g*G/2) = %d\n",c);
         printf("launching with %d blocks per network and %d threads per block\n", BPN, TPB);
         run2Scalable<<<sampleSum * BPN, TPB>>>(
             genes, samples, samples2, dtriA, dtriAb, dspacr, dff, ddofout, dppn,
