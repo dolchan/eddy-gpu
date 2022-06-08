@@ -13,11 +13,13 @@ __device__ void njLoop(int flag, int *stateSpaces, int node, int ssIdx,
   // int countcount;
   int pidOffset;
   // int test = -99999;
-  int *stateMatrixIdx;
-  int *stateMatrixVal;
+  //int *stateMatrixIdx;
+  //int *stateMatrixVal;
+  int stateMatrixIdx[4];
+  int stateMatrixVal[4];
 
-  stateMatrixIdx = (int *)malloc(sizeof(int) * noParents);
-  stateMatrixVal = (int *)malloc(sizeof(int) * noParents);
+  //stateMatrixIdx = (int *)malloc(sizeof(int) * noParents);
+  //stateMatrixVal = (int *)malloc(sizeof(int) * noParents);
 
   // routine for offset variable
   if (flag == 0) {
@@ -82,8 +84,8 @@ __device__ void njLoop(int flag, int *stateSpaces, int node, int ssIdx,
     } // endkloop
   }
 
-  free(stateMatrixIdx);
-  free(stateMatrixVal);
+  //free(stateMatrixIdx);
+  //free(stateMatrixVal);
   // get rid of return value
   // return test;
 }
@@ -124,6 +126,9 @@ __device__ double bDeu3(int flag, int blkoffset, int idxoffset, int tdxOffset,
       printf("normal case\n");
     }
   }
+  if (noParents <= 0) {
+    return 0; // bDeu=0 when number of parents is zero
+  }
   if (noParents > 4) {
     noParents = 4;
     printf("parents triggered idx : %d %d\n", idx, noEdges1);
@@ -132,11 +137,13 @@ __device__ double bDeu3(int flag, int blkoffset, int idxoffset, int tdxOffset,
   // test = noParents;
 
   int pos2 = 1; // test
-  int *parentAry;
+  //int *parentAry;
+  int parentAry[4];
 
   // parent scale variable, an attempt to make noParent >1 scalable to all cases
 
-  parentAry = (int *)malloc(sizeof(int) * (noParents));
+  //parentAry = (int *)malloc(sizeof(int) * (noParents));
+  assert(parentAry!=0);
   parentAry[0] = threadIdx.x; // test
 
   // where parentarray locations are in data
@@ -148,14 +155,18 @@ __device__ double bDeu3(int flag, int blkoffset, int idxoffset, int tdxOffset,
   }
 
   //	int *nij; int *nijk;
-  int *stateVal;
+  //int *stateVal;
+  int stateVal[3];
   int noParentInstances = 1;
   int pid;
 
   // state space and state flag come from first kernel run2
   assert(tdxOffset + threadIdx.x < ppnLen);
-  stateVal =
-      (int *)malloc(sizeof(int) * stateSpace[tdxOffset + threadIdx.x]); // ask
+  assert(stateSpace[tdxOffset + threadIdx.x]>0);
+//  stateVal = (int *)malloc(sizeof(int) * stateSpace[tdxOffset + threadIdx.x]); // ask 
+  if(stateVal==0){printf("STATE SPACE: %d\n",stateSpace[tdxOffset + threadIdx.x]);}
+  assert(stateVal!=0);
+  //if (stateSpace[tdxOffset + threadIdx.x]<0) printf("ERROR %d\n",stateSpace[tdxOffset + threadIdx.x]);
   int pos = 0;
   int stateSs[3] = {-1, 0, 1};
   for (int i = 0; i < 3; i++) {
@@ -191,8 +202,8 @@ __device__ double bDeu3(int flag, int blkoffset, int idxoffset, int tdxOffset,
          samples, noParents, noParentInstances, parentAry, stateFlag, data,
          stateVal, nij, nijk, nijOs, nijkOs, ppnLen);
 
-  free(parentAry);
-  free(stateVal);
+  //free(parentAry);
+  //free(stateVal);
 
   double sum1 = 0;
   double sum2 = 0;

@@ -7,7 +7,8 @@
 #include <cstdlib>
 #include <cuda.h>
 #include <math.h>
-#include <math_functions.h>
+//#include <math_functions.h>
+#include <cuda_runtime.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/timeb.h>
@@ -754,6 +755,7 @@ int main(int argc, char *argv[]) {
 
       cudaEventRecord(start, 0);
       // printf("c = %d\n", c);
+      printf ("BEFORE RUN2\n");
       if (c < MAX_THREADS) {
         run2<<<sampleSum, c, genes * genes * sizeof(int)>>>(
             genes, samples, samples2, dtriA, dtriAb, dspacr, dff, ddofout, dppn,
@@ -763,15 +765,16 @@ int main(int argc, char *argv[]) {
         int BPN = ceil((c * 1.0) / MAX_THREADS);
         int TPB = ceil((c * 1.0) / BPN);
 
-        // printf("launching with %d blocks per network and %d threads per
-        // block\n", BPN, TPB);
+ 	printf("C (g*G/2) = %d\n",c);
+        printf("launching with %d blocks per network and %d threads per block\n", BPN, TPB);
         run2Scalable<<<sampleSum * BPN, TPB>>>(
             genes, samples, samples2, dtriA, dtriAb, dspacr, dff, ddofout, dppn,
             dstf, dout23, c, dpriorMatrix, alphaEdgePrior, alphaEdge,
             flag_pAdjust, BPN, TPB);
-        // printf("run2Scalable completed\n");
+        printf("run2Scalable completed\n");
       }
 
+      printf ("AFTER RUN2\n");
       // test ppn/stf
       /*int *tempPpn = (int *)malloc(sizeof(int) * 2 * genesetlength);
          int *tempStf = (int *)malloc(sizeof(int) * 2 * 3 * genesetlength);
@@ -806,9 +809,11 @@ int main(int argc, char *argv[]) {
         // host array to transfer output of run2 to edgeListData1/edgeListData2
         int *tempOut23 = (int *)malloc(sizeof(int) * c * scalerSum);
 
+        printf ("LINE NUMBER 811\n");
         // copy binary data back to CPU
         HANDLE_ERROR(cudaMemcpy(tempOut23, dout23, sizeof(int) * c * scalerSum,
                                 cudaMemcpyDeviceToHost));
+        printf ("LINE NUMBER 815\n");
 
         // first network in first class - no samples left out
         for (int i = 0; i < c; i++) {
@@ -857,9 +862,11 @@ int main(int argc, char *argv[]) {
 
       // edgePerNetworkKernel << < sampleSum + 1, c, (c * sizeof(int)) >>
       // >(dout23, dedgesPN, dsrchAry, genes, MAX_PARENTS, c);
-      edgePerNetworkKernel<<<sampleSum + 1, 1>>>(dout23, dedgesPN, dsrchAry,
+      printf("BEFORE EPN KERNEL\n");
+      edgePerNetworkKernel<<<sampleSum, 1>>>(dout23, dedgesPN, dsrchAry,
                                                  genes, MAX_PARENTS, c);
-      // printf("edgesPerNetworkKernel finished\n");
+      HANDLE_ERROR(cudaDeviceSynchronize());
+      printf("edgesPerNetworkKernel finished\n");
       cudaEventRecord(PN_stop, 0);
       // HANDLE_ERROR(cudaMemcpy(edgesPN, dedgesPN, sizeof(int) * (scalerSum +
       // 1), cudaMemcpyDeviceToHost));
@@ -946,9 +953,10 @@ int main(int argc, char *argv[]) {
       //      fprintf(edgePNFile, "edgesPN[%d] : %d\n", i, edgesPN[i]);
       //}
       // fclose(edgePNFile);
+      printf("run22 started\n");
       run22<<<scalerSum, noNodes>>>(c, dedgesPN, dout23, dpNodes, noNodes,
                                     numEdges, dsrchAry, dpEdges, MAX_PARENTS);
-      // printf("run22 finished\n");
+      printf("run22 finished\n");
 
       HANDLE_ERROR(
           cudaMemcpy(pNodes, dpNodes, nodeSize, cudaMemcpyDeviceToHost));
@@ -1092,6 +1100,7 @@ int main(int argc, char *argv[]) {
         if (visted[scalerTest[p]] == true) {
           continue;
         } else {
+      HANDLE_ERROR(cudaDeviceSynchronize());
           if (shrunk[p] == 0) {
             uniqueN[scalerTest[p]] = false;
             visted[scalerTest[p]] = true;
@@ -1262,15 +1271,17 @@ int main(int argc, char *argv[]) {
       cudaEventRecord(run4Start, 0);
       float run4Time;
 
+      printf("run 4 start: %d blocks %d threads\n",scaler*2,noNodes);
       run4<<<scaler * 2, noNodes>>>(scaler, dUniEpn, genesetLength, edSum,
                                     unisum, samples, samples2, dtriA, dtriAb,
                                     dpEdges2, dpNodes2, dppn, dstf, dNij, dNijk,
                                     dout5, dppnLength);
-      // printf("run 4 finished\n");
+      HANDLE_ERROR(cudaDeviceSynchronize());
+      printf("run 4 finished\n");
       cudaEventRecord(run4End, 0);
-      cudaEventSynchronize(run4End);
+      HANDLE_ERROR(cudaEventSynchronize(run4End));
       cudaEventElapsedTime(&run4Time, run4Start, run4End);
-      // printf("run 4 time : %f\n", run4Time);
+      printf("run 4 time : %f\n", run4Time);
 
       // space alloc host
       out5 = (double *)malloc(sizeof(double) * noNodes * scaler * 2);

@@ -7,7 +7,8 @@
 #include <cstdlib>
 #include <cuda.h>
 #include <math.h>
-#include <math_functions.h>
+//#include <math_functions.h>
+#include <cuda_runtime.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/timeb.h>

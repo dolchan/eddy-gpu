@@ -1,4 +1,6 @@
 
+test/*
+*.zip
 *.obj
 *.o
 eddy-gpu
