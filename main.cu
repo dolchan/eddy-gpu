@@ -814,6 +814,14 @@ int main(int argc, char *argv[]) {
       construct_resampling_indices(n_resamplings, samples, prop_resampling, resampled_indices_C1);
       construct_resampling_indices(n_resamplings, samples2, prop_resampling, resampled_indices_C2);
 
+      short *d_resampling_C1, *d_resampling_C2;
+      
+      int size_resamp = n_resamplings*sizeof(short);
+      HANDLE_ERROR(cudaMalloc(&d_resampling_C1, sizeof(short)*(numClass1 + numClass1 * n_resamplings)));
+      HANDLE_ERROR(cudaMalloc(&d_resampling_C2, sizeof(short)*(numClass2 + numClass2 * n_resamplings)));
+      HANDLE_ERROR(cudaMemcpy(d_resampling_C1, resampled_indices_C1, sizeof(short)*(numClass1 + numClass1 * n_resamplings), cudaMemcpyHostToDevice));
+      HANDLE_ERROR(cudaMemcpy(d_resampling_C2, resampled_indices_C2, sizeof(short)*(numClass2 + numClass2 * n_resamplings), cudaMemcpyHostToDevice));
+
 
       cudaEventRecord(start, 0);
       // printf("c = %d\n", c);
@@ -825,7 +833,8 @@ int main(int argc, char *argv[]) {
         //     dstf, dout23, c, dpriorMatrix, alphaEdgePrior, alphaEdge,
         //     flag_pAdjust);
 
-        determineEdges_resampled<<<n_resamplings, c>>>(resampled_indices_C1, resampled_indices_C2,
+        printf ("DE_RESAMP %d\n",n_resamplings);
+        determineEdges_resampled<<<n_resamplings, c>>>(d_resampling_C1, d_resampling_C2,
                                  genes, samples, samples2, dtriA, dtriAb, dpriorMatrix, 
                                  alphaEdgePrior, alphaEdge, flag_pAdjust,
                                  dppn, dstf, dspacr, dff, ddofout, c, dout23);
