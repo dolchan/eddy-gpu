@@ -51,5 +51,12 @@ int main(int argc, char* argv[]) {
 
   free(rand_numbers);
 
+  printf(
+    "\n"
+    "a\n"
+    "b\n"
+    "c\n"
+  );
+
   return 0;
 }
