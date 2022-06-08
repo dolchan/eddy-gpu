@@ -819,10 +819,16 @@ int main(int argc, char *argv[]) {
       // printf("c = %d\n", c);
       printf ("BEFORE RUN2\n");
       if (c < MAX_THREADS) {
-        run2<<<sampleSum, c, genes * genes * sizeof(int)>>>(
-            genes, samples, samples2, dtriA, dtriAb, dspacr, dff, ddofout, dppn,
-            dstf, dout23, c, dpriorMatrix, alphaEdgePrior, alphaEdge,
-            flag_pAdjust);
+
+        // run2<<<sampleSum, c, genes * genes * sizeof(int)>>>(
+        //     genes, samples, samples2, dtriA, dtriAb, dspacr, dff, ddofout, dppn,
+        //     dstf, dout23, c, dpriorMatrix, alphaEdgePrior, alphaEdge,
+        //     flag_pAdjust);
+
+        determineEdges_resampled<<<n_resamplings, c>>>(resampled_indices_C1, resampled_indices_C2,
+                                 genes, samples, samples2, dtriA, dtriAb, dpriorMatrix, 
+                                 alphaEdgePrior, alphaEdge, flag_pAdjust,
+                                 dppn, dstf, dspacr, dff, ddofout, c, dout23);
       } else {
         int BPN = ceil((c * 1.0) / MAX_THREADS);
         int TPB = ceil((c * 1.0) / BPN);

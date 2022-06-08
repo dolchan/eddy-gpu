@@ -76,7 +76,7 @@ __device__ double deviceGammds(double x, double p) {
 
 __device__ double 
 tally_contingency_table_resampled(
-  int *resample_idx,       // the array indicates if corresponding samples is 
+  short *resample_idx,       // the array indicates if corresponding samples is 
                            //    to be used (1) or not (0) in tallying contigency table.
   const int n_samples,     // the number of samples to process
                            //   n_samples_C1 or n_samples_C2 
@@ -531,8 +531,8 @@ __device__ void noStates(const int idx, const int noGenes, int samples1,
 __global__ 
 void __launch_bounds__(MAX_THREADS, 1) 
 determineEdges_resampled(
-  int *resample_idx_C1,    // the array indicates if corresponding samples is 
-  int *resample_idx_C2,    //    to be used (1) or not (0) in tallying contigency table.
+  short *resample_idx_C1,    // the array indicates if corresponding samples is 
+  short *resample_idx_C2,    //    to be used (1) or not (0) in tallying contigency table.
   const int n_genes, 
   const int n_samples_C1,
   const int n_samples_C2,
@@ -559,7 +559,7 @@ determineEdges_resampled(
                            //   to allow parallel computation and to carry the information 
                            //   between this kernel and sub-functions    
 
-  int *n_edges,
+  int n_edges,
   int *edge_out            // edges (0: no edge, 1: edge)
   ) {
 
@@ -589,9 +589,11 @@ determineEdges_resampled(
   }
 
   if (blockIdx.x <= n_samples_C1) {
-    edgeVal = sumrtime(0, n_samples_C1, data_C1_linear, row_ids, col_ids, dof_out, tidx);
+    // edgeVal = sumrtime(0, n_samples_C1, data_C1_linear, row_ids, col_ids, dof_out, tidx);
+    edgeVal = tally_contingency_table_resampled(resample_idx_C1, n_samples_C1, data_C1_linear, row_ids, col_ids, dof_out, tidx);
   } else {
-    edgeVal = sumrtime(n_samples_C1, n_samples_C2, data_C2_linear, row_ids, col_ids, dof_out, tidx);
+    // edgeVal = sumrtime(n_samples_C1, n_samples_C2, data_C2_linear, row_ids, col_ids, dof_out, tidx);
+    edgeVal = tally_contingency_table_resampled(resample_idx_C2, n_samples_C2, data_C2_linear, row_ids, col_ids, dof_out, tidx);
   }
 
   // edgeVal: p value of ChiSq (edge significance)
