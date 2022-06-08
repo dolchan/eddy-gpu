@@ -30,6 +30,12 @@ int structureUnique(int unique, int totEdges, int scaler1, int scaler2,
                     int noGenes, bool *uniqueList, int *edgesPN, int *edgeAry,
                     int *nodeAry, int *uniEdges, int *uniNodes, int *uniEpn);
 double gammds(double x, double p, int *ifault);
+
+void construct_resampling_indices(const int n_resamplings, 
+                                  const int n_samples, 
+                                  const float prop, 
+                                  short *resampled);
+
 int getMilliCount();
 int getMilliSpan(int nTimeStart);
 __host__ int arrayEqual(double *a, double *b, int size);

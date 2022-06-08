@@ -34,13 +34,15 @@ void printHelpMessage() {
          "  -g geneset.txt (GMT format)\n\n"
          "Optional arguments:\n"
          "  -mp {integer} (# of parents)\n"
-         "  -p {float} (pvalue for DDN significance testing)\n"
-         "  -r {integer} (number of permutations)\n"
-         "  -pw {float} (prior weight = [0, 1])\n"
-         "  -rawp (if set, no multiple testing; Bonferroni correction otherwise)\n"
-         "  -pE {float} (p threshold value for edge signficance, default = 0.05)\n"
-         "  -pD {float} (p threshold value for DDN, default = 0.05)\n"
-         "  -randseed {integer} (a random seed; if set to -1, time will be used\n\n"
+         "  -rs {integer} (number of resamplings, default = 100)\n"
+         "  -prs {float} (resampling proportions, default = 0.9)\n"
+         "  -r {integer} (number of permutations, defaul = 100)\n"
+         "  -pw {float} (prior weight = [0, 1], default = 0.5)\n"
+         "  -rawp (if set, no multiple testing; Bonferroni correction if not set.)\n"
+         "  -pE {float} (p-value threshold for edge signficance, default = 0.05)\n"
+         "  -pD {float} (p-value threshold for DDN, default = 0.05)\n"
+         "  -randseed {integer} (a random seed; default = 0.\n"
+         "                       if set to -1, time will be used.)\n\n"
          );
 }
 
@@ -99,6 +101,10 @@ int main(int argc, char *argv[]) {
   // limits the number of parents a node can have
   int parentCap = 0;
 
+  // number of resampling
+  int n_resamplings = 100;
+  double prop_resampling = 0.9;
+
   // number of permutations, to estimate alpha and beta, for beta distribution
   int perms = 100; // 100 permutations
 
@@ -131,13 +137,15 @@ int main(int argc, char *argv[]) {
   //-c for class
   //-mp for max parents
   //-pD for p threshold value for DDN significance
+  //-rs number of resamplings
+  //-prs resampling proportion
   //-r number of permutations
   //-pE for p threshold value for edge signficance
   //-rawp (no additional value afterward), given no multiple testing correction
-  //-t for theta (to be deprecated)
-  //-l for lambda (to be deprecated)
   //-pw prior weight = [0,1]
   //-randseed random seed
+  //-t for theta (to be deprecated)
+  //-l for lambda (to be deprecated)
   // loop through argv, determining location of each arg parameter
 
   if (argc < 2) {
@@ -158,6 +166,10 @@ int main(int argc, char *argv[]) {
       theta = atof(argv[i + 1]);
     else if (strcmp(argv[i], "-mp") == 0)
       parentCap = atoi(argv[i + 1]);
+    else if (strcmp(argv[i], "-rs") == 0)
+      n_resamplings = atoi(argv[i + 1]);
+    else if (strcmp(argv[i], "-prs") == 0)
+      prop_resampling = atof(argv[i + 1]);
     else if (strcmp(argv[i], "-r") == 0)
       perms = atoi(argv[i + 1]);
     else if (strcmp(argv[i], "-pw") == 0 || strcmp(argv[i], "pW") == 0)
@@ -286,6 +298,9 @@ int main(int argc, char *argv[]) {
   int *transferData1;
   int *transferData2;
   char *token;
+
+  short *resampled_indices_C1;  // to keep track of resampling (C1)
+  short *resampled_indices_C2;  // to keep track of resampling (C2)
 
   // determine length of first line
   while ((ch=getc(fpExpr)) != '\n') {                                             
@@ -585,6 +600,12 @@ int main(int argc, char *argv[]) {
     cudaEventCreate(&begin);
     cudaEventCreate(&end);
 
+
+    // numClass1 = n_samples_C1, numClass2 = n_samples_C2
+    resampled_indices_C1 = (short *)malloc(sizeof(short) * (numClass1 + numClass1 * n_resamplings));
+    resampled_indices_C2 = (short *)malloc(sizeof(short) * (numClass2 + numClass2* n_resamplings));
+
+
     printf("Permutations begin:\n");
     for (int permNum = 0; permNum < perms; permNum++) {
       n = 0;
@@ -784,6 +805,15 @@ int main(int argc, char *argv[]) {
       // run no states in separate kernel to avoid threading
       // noStates_kernel <<<genes * 2, 1 >>>(genes, samples, samples2, dtriA,
       // dtriAb, dppn, dstf);
+
+
+
+      // resampling indices
+      //
+      //
+      construct_resampling_indices(n_resamplings, samples, prop_resampling, resampled_indices_C1);
+      construct_resampling_indices(n_resamplings, samples2, prop_resampling, resampled_indices_C2);
+
 
       cudaEventRecord(start, 0);
       // printf("c = %d\n", c);
@@ -1730,6 +1760,9 @@ int main(int argc, char *argv[]) {
            msec % 1000);
     //---------------------------------------------------------------------------
     // free variables
+
+    free(resampled_indices_C1);
+    free(resampled_indices_C2);
 
     free(transferData1);
     free(transferData2);
