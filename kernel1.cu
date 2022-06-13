@@ -97,7 +97,7 @@ tally_contingency_table_resampled(
   double expected[3][3] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
 
   for (int k1 = 0; k1 < n_samples; k1++) {
-    if (resample_idx[idx * n_samples + k1] == 0) {
+    if (resample_idx[blockIdx.x * n_samples + k1] == 0) {
       continue;
     }
 
@@ -573,9 +573,9 @@ determineEdges_resampled(
   int row = row_ids[tidx];
   int col = col_ids[tidx];
 
-  extern __shared__ int sharedMatrix[];
+  //extern __shared__ int sharedMatrix[];
 
-  *(sharedMatrix + row * n_genes + col) = *(priorMatrix + row * n_genes + col);
+  //*(sharedMatrix + row * n_genes + col) = *(priorMatrix + row * n_genes + col);
 
   __syncthreads();
 
@@ -604,7 +604,7 @@ determineEdges_resampled(
     edgeVal = min(1.0, edgeVal * (((n_genes - 1) * n_genes) / 2));
   }
 
-  if (edgeVal < alphaEdge || (*(sharedMatrix + row * n_genes + col) == 1 &&
+  if (edgeVal < alphaEdge || (*(priorMatrix + row * n_genes + col) == 1 &&
                               edgeVal < alphaEdgePrior)) {
     edge_out[index] = 1;
   } else {
