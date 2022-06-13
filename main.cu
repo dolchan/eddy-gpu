@@ -877,7 +877,7 @@ int main(int argc, char *argv[]) {
         // host array to transfer output of run2 to edgeListData1/edgeListData2
         int *tempOut23 = (int *)malloc(sizeof(int) * c * scalerSum);
 
-        printf ("LINE NUMBER 811\n");
+        // printf ("LINE NUMBER 811\n");
         // copy binary data back to CPU
         HANDLE_ERROR(cudaMemcpy(tempOut23, dout23, sizeof(int) * c * scalerSum,
                                 cudaMemcpyDeviceToHost));
