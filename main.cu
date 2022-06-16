@@ -300,7 +300,10 @@ int main(int argc, char *argv[]) {
   char *token;
 
   short *resampled_indices_C1;  // to keep track of resampling (C1)
+  unsigned int n_resampled_C1;
+
   short *resampled_indices_C2;  // to keep track of resampling (C2)
+  unsigned int n_resampled_C2;
 
   // determine length of first line
   while ((ch=getc(fpExpr)) != '\n') {                                             
@@ -477,6 +480,7 @@ int main(int argc, char *argv[]) {
           break;
         }
       }
+
       // printf ("Gene %d index: %d %d %s
       // %s\n",i,genesetindexintodata[i],j,genenames[genesetindexintodata[i]],genesetgenes[i]);
       if (flagFound) {
@@ -600,10 +604,17 @@ int main(int argc, char *argv[]) {
     cudaEventCreate(&begin);
     cudaEventCreate(&end);
 
-
     // numClass1 = n_samples_C1, numClass2 = n_samples_C2
-    resampled_indices_C1 = (short *)malloc(sizeof(short) * (numClass1 + numClass1 * n_resamplings));
-    resampled_indices_C2 = (short *)malloc(sizeof(short) * (numClass2 + numClass2* n_resamplings));
+    if (prop_resampling > 0) {
+      n_resampled_C1 = get_proportional_resampling_size(n_resamplings, numClass1);
+      n_resampled_C2 = get_proportional_resampling_size(n_resamplings, numClass2);      
+    } else {
+      n_resampled_C1 = get_leave_one_out_resampling_size(numClass1);
+      n_resampled_C2 = get_leave_one_out_resampling_size(numClass2);
+    }
+
+    resampled_indices_C1 = (short *)malloc(sizeof(short) * n_resampled_C1;
+    resampled_indices_C2 = (short *)malloc(sizeof(short) * n_resampled_C2;
 
 
     printf("Permutations begin:\n");
@@ -810,22 +821,29 @@ int main(int argc, char *argv[]) {
 
       // resampling indices
       //
-      //
-      construct_resampling_indices(n_resamplings, samples, prop_resampling, resampled_indices_C1);
-      construct_resampling_indices(n_resamplings, samples2, prop_resampling, resampled_indices_C2);
+      if (prop_resampling > 0) {
+        construct_proportional_resampling_indices(n_resamplings, samples, prop_resampling, resampled_indices_C1);
+        construct_proportional_resampling_indices(n_resamplings, samples2, prop_resampling, resampled_indices_C2);        
+      } else {
+        construct_leave_one_out_resampling_indices(samples, resampled_indices_C1);
+        construct_leave_one_out_resampling_indices(samples2, resampled_indices_C2);        
+      }
 
       short *d_resampling_C1, *d_resampling_C2;
       
       int size_resamp = n_resamplings*sizeof(short);
-      HANDLE_ERROR(cudaMalloc(&d_resampling_C1, sizeof(short)*(numClass1 + numClass1 * n_resamplings)));
-      HANDLE_ERROR(cudaMalloc(&d_resampling_C2, sizeof(short)*(numClass2 + numClass2 * n_resamplings)));
-      HANDLE_ERROR(cudaMemcpy(d_resampling_C1, resampled_indices_C1, sizeof(short)*(numClass1 + numClass1 * n_resamplings), cudaMemcpyHostToDevice));
-      HANDLE_ERROR(cudaMemcpy(d_resampling_C2, resampled_indices_C2, sizeof(short)*(numClass2 + numClass2 * n_resamplings), cudaMemcpyHostToDevice));
+      HANDLE_ERROR(cudaMalloc(&d_resampling_C1, sizeof(short)*n_resampled_C1));
+      HANDLE_ERROR(cudaMalloc(&d_resampling_C2, sizeof(short)*n_resampled_C2));
+      HANDLE_ERROR(cudaMemcpy(d_resampling_C1, resampled_indices_C1, sizeof(short)*n_resampled_C1, cudaMemcpyHostToDevice));
+      HANDLE_ERROR(cudaMemcpy(d_resampling_C2, resampled_indices_C2, sizeof(short)*n_resampled_C2, cudaMemcpyHostToDevice));
 
 
       cudaEventRecord(start, 0);
       // printf("c = %d\n", c);
-      printf ("BEFORE RUN2\n");
+
+      if (__DEBUG_EDDY__)
+        printf ("BEFORE RUN2\n");
+
       if (c < MAX_THREADS) {
 
         // run2<<<sampleSum, c, genes * genes * sizeof(int)>>>(
@@ -851,7 +869,8 @@ int main(int argc, char *argv[]) {
         printf("run2Scalable completed\n");
       }
 
-      printf ("AFTER RUN2\n");
+      if (__DEBUG_EDDY__)
+        printf ("AFTER RUN2\n");
       // test ppn/stf
       /*int *tempPpn = (int *)malloc(sizeof(int) * 2 * genesetlength);
          int *tempStf = (int *)malloc(sizeof(int) * 2 * 3 * genesetlength);
@@ -866,6 +885,8 @@ int main(int argc, char *argv[]) {
          {
          printf("stf[%d] : %d\n", i, tempStf[i]);
          } */
+
+
 
       // printf("run2 finished\n");
       cudaError_t errSync = cudaGetLastError();
