@@ -5,3 +5,5 @@ test/*
 *.o
 eddy-gpu
 suppl/random_sampling/random_resample2
+results.txt
+tags

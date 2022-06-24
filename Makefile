@@ -3,7 +3,8 @@ BIN               := eddy-gpu
 NVCC ?= nvcc
 # INCD = -I/opt/apps/intel14/boost/1.51.0/include -I"./"
 # NVCCFLAGS := --ptxas-options=-v -O3 -G -g 
-NVCCFLAGS := -O3 --ptxas-options=-v -lineinfo -arch=sm_60
+NVCCFLAGS := -O3 --ptxas-options=-v -lineinfo -arch=sm_60 
+
 
 
 
