@@ -9,7 +9,7 @@ unsigned int get_leave_one_out_resampling_size(const int n_samples) {
 }
 
 void construct_proportional_resampling_indices(const int n_resamplings, const int n_samples, const float prop, short *resampled) {
-  unsigned int N = get_resampled_size(n_resamplings, n_samples);  // the first batch will be full data set
+  unsigned int N = get_proportional_resampling_size(n_resamplings, n_samples);  // the first batch will be full data set
   unsigned int rand_threshold = round(RAND_MAX * (1.0 - prop));
 
 

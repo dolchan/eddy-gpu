@@ -613,8 +613,8 @@ int main(int argc, char *argv[]) {
       n_resampled_C2 = get_leave_one_out_resampling_size(numClass2);
     }
 
-    resampled_indices_C1 = (short *)malloc(sizeof(short) * n_resampled_C1;
-    resampled_indices_C2 = (short *)malloc(sizeof(short) * n_resampled_C2;
+    resampled_indices_C1 = (short *)malloc(sizeof(short) * n_resampled_C1);
+    resampled_indices_C2 = (short *)malloc(sizeof(short) * n_resampled_C2);
 
 
     printf("Permutations begin:\n");
@@ -831,7 +831,7 @@ int main(int argc, char *argv[]) {
 
       short *d_resampling_C1, *d_resampling_C2;
       
-      int size_resamp = n_resamplings*sizeof(short);
+      // int size_resamp = n_resamplings*sizeof(short);
       HANDLE_ERROR(cudaMalloc(&d_resampling_C1, sizeof(short)*n_resampled_C1));
       HANDLE_ERROR(cudaMalloc(&d_resampling_C2, sizeof(short)*n_resampled_C2));
       HANDLE_ERROR(cudaMemcpy(d_resampling_C1, resampled_indices_C1, sizeof(short)*n_resampled_C1, cudaMemcpyHostToDevice));
@@ -841,8 +841,9 @@ int main(int argc, char *argv[]) {
       cudaEventRecord(start, 0);
       // printf("c = %d\n", c);
 
-      if (__DEBUG_EDDY__)
+#if __DEBUG_EDDY__
         printf ("BEFORE RUN2\n");
+#endif  /* __DEBUG_EDDY__ */
 
       if (c < MAX_THREADS) {
 
@@ -869,8 +870,10 @@ int main(int argc, char *argv[]) {
         printf("run2Scalable completed\n");
       }
 
-      if (__DEBUG_EDDY__)
+#if __DEBUG_EDDY__
         printf ("AFTER RUN2\n");
+#endif /* __DEBUG_EDDY__ */
+
       // test ppn/stf
       /*int *tempPpn = (int *)malloc(sizeof(int) * 2 * genesetlength);
          int *tempStf = (int *)malloc(sizeof(int) * 2 * 3 * genesetlength);

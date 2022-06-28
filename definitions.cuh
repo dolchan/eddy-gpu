@@ -38,6 +38,13 @@ void construct_resampling_indices(const int n_resamplings,
 
 int getMilliCount();
 int getMilliSpan(int nTimeStart);
+
+unsigned int get_proportional_resampling_size(const int n_resamplings, const int n_samples);
+unsigned int get_leave_one_out_resampling_size(const int n_samples);
+void construct_proportional_resampling_indices(const int n_resamplings, const int n_samples, const float prop, short *resampled);
+void construct_leave_one_out_resampling_indices(const int n_samples, short *resampled);
+
+
 __host__ int arrayEqual(double *a, double *b, int size);
 __host__ int cmpfunc(const void *a, const void *b);
 __host__ void writeBdeuScores(char *outputFile, char *inputFile,
@@ -60,6 +67,9 @@ __host__ double mean(double *a, size_t size);
 __host__ double variance(double mean, double *a, size_t size);
 __host__ void checkParentLimit(int numNetworks, int numNodes, int maxParents,
                                int *nodes, size_t size);
+
+
+
 
 // CPU graph struct
 typedef struct graphNode {
