@@ -131,6 +131,7 @@ __device__ double sumrtime(const int offset, const int len, int *data, int *spc,
                            int *fr, int *dof, int idx);
 
 __device__ double tally_contingency_table_resampled(
+  int offset,
   int *resample_idx,       // the array indicates if corresponding samples is 
                            //    to be used (1) or not (0) in tallying contigency table.
   const int n_samples,     // the number of samples to process

@@ -76,6 +76,7 @@ __device__ double deviceGammds(double x, double p) {
 
 __device__ double 
 tally_contingency_table_resampled(
+  int offset,
   short *resample_idx,       // the array indicates if corresponding samples is 
                            //    to be used (1) or not (0) in tallying contigency table.
   const int n_samples,     // the number of samples to process
@@ -97,7 +98,7 @@ tally_contingency_table_resampled(
   double expected[3][3] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
 
   for (int k1 = 0; k1 < n_samples; k1++) {
-    if (resample_idx[blockIdx.x * n_samples + k1] == 0) {
+    if (resample_idx[(blockIdx.x-offset) * n_samples + k1] == 0) {
       continue;
     }
 
@@ -590,10 +591,10 @@ determineEdges_resampled(
 
   if (blockIdx.x <= n_samples_C1) {
     // edgeVal = sumrtime(0, n_samples_C1, data_C1_linear, row_ids, col_ids, dof_out, tidx);
-    edgeVal = tally_contingency_table_resampled(resample_idx_C1, n_samples_C1, data_C1_linear, row_ids, col_ids, dof_out, tidx);
+    edgeVal = tally_contingency_table_resampled(0,resample_idx_C1, n_samples_C1, data_C1_linear, row_ids, col_ids, dof_out, tidx);
   } else {
     // edgeVal = sumrtime(n_samples_C1, n_samples_C2, data_C2_linear, row_ids, col_ids, dof_out, tidx);
-    edgeVal = tally_contingency_table_resampled(resample_idx_C2, n_samples_C2, data_C2_linear, row_ids, col_ids, dof_out, tidx);
+    edgeVal = tally_contingency_table_resampled(n_samples_C1+1,resample_idx_C2, n_samples_C2, data_C2_linear, row_ids, col_ids, dof_out, tidx);
   }
 
   // edgeVal: p value of ChiSq (edge significance)
