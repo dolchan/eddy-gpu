@@ -315,7 +315,8 @@ int main(int argc, char *argv[]) {
   buf = (char *)malloc(firstlinecharcount * sizeof(char));
 
   // loads expression file into buffer
-  fgets(buf, firstlinecharcount, fpExpr);
+  // THIS LINE CAUSES PROBLEMS
+  fgets(buf, sizeof(buf)*firstlinecharcount, fpExpr);
   token = strtok(buf, "\t");
   token = strtok(NULL, "\t");
 
@@ -827,6 +828,7 @@ int main(int argc, char *argv[]) {
       } else {
         construct_leave_one_out_resampling_indices(samples, resampled_indices_C1);
         construct_leave_one_out_resampling_indices(samples2, resampled_indices_C2);        
+        n_resamplings=sampleSum;
       }
 
       short *d_resampling_C1, *d_resampling_C2;
