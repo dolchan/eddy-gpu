@@ -145,6 +145,23 @@ __device__ double tally_contingency_table_resampled(
   int idx                  // local thread (threadIdx.x)
   );
 
+__device__ double tally_contingency_table_resampled_scalable(
+  int offset,
+  int *resample_idx,       // the array indicates if corresponding samples is 
+                           //    to be used (1) or not (0) in tallying contigency table.
+  const int n_samples,     // the number of samples to process
+                           //   n_samples_C1 or n_samples_C2 
+  int *data,               // data stored in linear array
+                           //   data_C1_linear or data_C2_linear
+  int *row_ids,            // gene1 ids
+  int *col_ids,            // gene2 ids
+
+  int *dof,                // degree of freedom (computed in this function)
+  int idx,                  // local thread (threadIdx.x)
+  int netID,
+  int globalIdx
+  );
+
 __device__ double sumrtimeScalable(const int offset, const int len, int *data,
                                    int *spc, int *fr, int *dof, int idx,
                                    int netID, int globalIdx);
@@ -192,7 +209,39 @@ void determineEdges_resampled(
   );
 
 
+__global__ 
+void determineEdges_resampled_scalable(
+  short *resample_idx_C1,    // the array indicates if corresponding samples is 
+  short *resample_idx_C2,    //    to be used (1) or not (0) in tallying contigency table.
+  const int n_genes, 
+  const int n_samples_C1,
+  const int n_samples_C2,
+  int *data_C1_linear,
+  int *data_C2_linear,
+  int *priorMatrix,
+  double alphaEdgePrior,
+  double alphaEdge,
+  bool flag_pAdjust,
 
+  //
+  // below are computed in this function
+  //
+  int *n_observed_states,  // the number of observed states in C1 and C2 (2 * num_genes)
+                           //    the value should be 1, 2 or 3 
+  int *freq_states,        // the frequency of each state in C1 and C2 (3 * 2 * num_genes)
+
+  int *row_ids,            // row_ids and col_ids specify 
+  int *col_ids,            //   how computed edges are stored in a linear array
+                           //   (row_ids, col_ids) are also a pair of genes.
+  int *dof_out,            // degree of freedom for ChiSq test
+                           //   this is not used outside this kernel
+                           // however, needed internally, and memory was allocated
+                           //   to allow parallel computation and to carry the information 
+                           //   between this kernel and sub-functions    
+
+  int n_edges,
+  int *edge_out,           // edges (0: no edge, 1: edge)
+  int BPN, int TPB);
 
 __global__ void run2Scalable(const int noGenes, const int leng, const int lengb,
                              int *tary, int *taryb, int *spacr, int *ff,
