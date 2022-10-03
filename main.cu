@@ -826,6 +826,7 @@ int main(int argc, char *argv[]) {
         construct_proportional_resampling_indices(n_resamplings, samples, prop_resampling, resampled_indices_C1);
         construct_proportional_resampling_indices(n_resamplings, samples2, prop_resampling, resampled_indices_C2);        
       } else {
+        printf("Leave one out resampling\n");
         construct_leave_one_out_resampling_indices(samples, resampled_indices_C1);
         construct_leave_one_out_resampling_indices(samples2, resampled_indices_C2);        
         n_resamplings=sampleSum;
@@ -865,10 +866,16 @@ int main(int argc, char *argv[]) {
 
  	      printf("C (g*G/2) = %d\n",c);
         printf("launching with %d blocks per network and %d threads per block\n", BPN, TPB);
-        run2Scalable<<<sampleSum * BPN, TPB>>>(
-            genes, samples, samples2, dtriA, dtriAb, dspacr, dff, ddofout, dppn,
-            dstf, dout23, c, dpriorMatrix, alphaEdgePrior, alphaEdge,
-            flag_pAdjust, BPN, TPB);
+        determineEdges_resampled_scalable<<<n_resamplings * BPN, TPB>>>(
+            d_resampling_C1, d_resampling_C2,
+            genes, samples, samples2, dtriA, dtriAb, dpriorMatrix, 
+            alphaEdgePrior, alphaEdge, flag_pAdjust, 
+            dppn, dstf, dspacr, dff, ddofout, c, dout23,
+            BPN, TPB);
+        //run2Scalable<<<sampleSum * BPN, TPB>>>(
+        //    genes, samples, samples2, dtriA, dtriAb, dspacr, dff, ddofout, dppn,
+        //    dstf, dout23, c, dpriorMatrix, alphaEdgePrior, alphaEdge,
+        //    flag_pAdjust, BPN, TPB);
         printf("run2Scalable completed\n");
       }
 
