@@ -63,25 +63,53 @@ __device__ void njLoop(int flag, int *stateSpaces, int node, int ssIdx,
     }
 
     assert(ssIdx < ppnLen);
+
+    // initialization of out2
     for (int k = 0; k < stateSpaces[ssIdx]; k++) {
-
+      // int IDX_k = j * stateSpaces[ssIdx] + k + out2Offset;
+      // out2[IDX_k] = 0;
       out2[j * stateSpaces[ssIdx] + k + out2Offset] = 0;
+    }
 
-      for (int s = 0; s < samples; s++) {
-
+    for (int s = 0; s < samples; s++) {
+      for (int k = 0; k < stateSpaces[ssIdx]; k++) {
         int count = (data[node * samples + s] == stateVal[k]);
 
         for (int p3 = 1; p3 < noParents; p3++) {
           pid = parentArray[p3];
           count *= (data[pid * samples + s] == stateMatrixVal[p3]);
         }
-
+        // out2[IDX_k] += count;
         out2[j * stateSpaces[ssIdx] + k + out2Offset] += count;
       }
+    }
 
+    // reduction/summary of out2 to out
+    for (int k = 0; k < stateSpaces[ssIdx]; k++) {
+      // out[j + outOffSet] += out2[IDX_k];
       out[j + outOffSet] += out2[j * stateSpaces[ssIdx] + k + out2Offset];
-
     } // endkloop
+
+    // for (int k = 0; k < stateSpaces[ssIdx]; k++) {
+
+    //   int IDX_k = j * stateSpaces[ssIdx] + k + out2Offset;
+    //   out2[IDX_k] = 0;
+
+    //   for (int s = 0; s < samples; s++) {
+
+    //     int count = (data[node * samples + s] == stateVal[k]);
+
+    //     for (int p3 = 1; p3 < noParents; p3++) {
+    //       pid = parentArray[p3];
+    //       count *= (data[pid * samples + s] == stateMatrixVal[p3]);
+    //     }
+
+    //     out2[IDX_k] += count;
+    //   }
+
+    //   out[j + outOffSet] += out2[IDX_k];
+
+    // } // endkloop
   }
 
   //free(stateMatrixIdx);
