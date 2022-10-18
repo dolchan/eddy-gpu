@@ -516,8 +516,10 @@ __host__ void checkParentLimit(int numNetworks, int numNodes, int maxParents,
     for (int i = 0; i < numNodes - 1; i++) {
       if (nodes[(net * numNodes) + i + 1] - nodes[(net * numNodes) + i] >
           maxParents) {
-        printf("PROBLEM @ %d %d\n", (net * numNodes) + i,
-               (net * numNodes) + i + 1);
+        printf("PROBLEM @ NODES[%d] = %d NODES[%d] = %d\n", (net * numNodes) + i + 1,
+               nodes[(net * numNodes) + i + 1],
+               (net * numNodes) + i, 
+               nodes[(net * numNodes) + i] );
       }
     }
   }

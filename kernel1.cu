@@ -659,6 +659,7 @@ determineEdges_resampled(
   const int n_genes, 
   const int n_samples_C1,
   const int n_samples_C2,
+  const int n_resampled_C1,
   int *data_C1_linear,
   int *data_C2_linear,
   int *priorMatrix,
@@ -711,12 +712,12 @@ determineEdges_resampled(
     noStates(index, n_genes, n_samples_C1, n_samples_C2, data_C1_linear, data_C2_linear, n_observed_states, freq_states);
   }
 
-  if (blockIdx.x <= n_samples_C1) {
+  if (blockIdx.x <= n_resampled_C1) {
     // edgeVal = sumrtime(0, n_samples_C1, data_C1_linear, row_ids, col_ids, dof_out, tidx);
     edgeVal = tally_contingency_table_resampled(0,resample_idx_C1, n_samples_C1, data_C1_linear, row_ids, col_ids, dof_out, tidx);
   } else {
     // edgeVal = sumrtime(n_samples_C1, n_samples_C2, data_C2_linear, row_ids, col_ids, dof_out, tidx);
-    edgeVal = tally_contingency_table_resampled(n_samples_C1+1,resample_idx_C2, n_samples_C2, data_C2_linear, row_ids, col_ids, dof_out, tidx);
+    edgeVal = tally_contingency_table_resampled(n_resampled_C1+1,resample_idx_C2, n_samples_C2, data_C2_linear, row_ids, col_ids, dof_out, tidx);
   }
 
   // edgeVal: p value of ChiSq (edge significance)
@@ -744,6 +745,7 @@ determineEdges_resampled_scalable(
   const int n_genes, 
   const int n_samples_C1,
   const int n_samples_C2,
+  const int n_resampled_C1,
   int *data_C1_linear,
   int *data_C2_linear,
   int *priorMatrix,
@@ -798,12 +800,12 @@ determineEdges_resampled_scalable(
     noStates(globalIdx, n_genes, n_samples_C1, n_samples_C2, data_C1_linear, data_C2_linear, n_observed_states, freq_states);
   }
 
-  if (netId <= n_samples_C1) {
+  if (netId <= n_resampled_C1) {
     // edgeVal = sumrtime(0, n_samples_C1, data_C1_linear, row_ids, col_ids, dof_out, tidx);
     edgeVal = tally_contingency_table_resampled_scalable(0,resample_idx_C1, n_samples_C1, data_C1_linear, row_ids, col_ids, dof_out, localIdx, netId, globalIdx);
   } else {
     // edgeVal = sumrtime(n_samples_C1, n_samples_C2, data_C2_linear, row_ids, col_ids, dof_out, tidx);
-    edgeVal = tally_contingency_table_resampled_scalable(n_samples_C1+1,resample_idx_C2, n_samples_C2, data_C2_linear, row_ids, col_ids, dof_out, localIdx, netId, globalIdx);
+    edgeVal = tally_contingency_table_resampled_scalable(n_resampled_C1+1,resample_idx_C2, n_samples_C2, data_C2_linear, row_ids, col_ids, dof_out, localIdx, netId, globalIdx);
   }
 
   // edgeVal: p value of ChiSq (edge significance)

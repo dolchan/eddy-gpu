@@ -701,6 +701,8 @@ int main(int argc, char *argv[]) {
       int scaler = (samples + 1);
       int scaler2 = (samples2 + 1);
       int scalerSum = scaler + scaler2;
+      int num_sample_blocks;
+      int sample_num1, sample_num2;
 
       int *spacer1; // dyn
       spacer1 = (int *)malloc(c * sizeof(int));
@@ -811,7 +813,7 @@ int main(int argc, char *argv[]) {
       // deploy
       int milliSecondsElapsed1 = getMilliSpan(start1);
       int start2 = getMilliCount();
-      int sampleSum = samples + samples2 + 2;
+      //int sampleSum = samples + samples2 + 2;
       // printf("samples : %d\n", samples);
 
       // run no states in separate kernel to avoid threading
@@ -825,12 +827,24 @@ int main(int argc, char *argv[]) {
       if (prop_resampling > 0) {
         construct_proportional_resampling_indices(n_resamplings, samples, prop_resampling, resampled_indices_C1);
         construct_proportional_resampling_indices(n_resamplings, samples2, prop_resampling, resampled_indices_C2);        
+        num_sample_blocks=n_resamplings*2+2;
+        sample_num1=n_resamplings;
+        sample_num2=n_resamplings;
       } else {
         printf("Leave one out resampling\n");
         construct_leave_one_out_resampling_indices(samples, resampled_indices_C1);
         construct_leave_one_out_resampling_indices(samples2, resampled_indices_C2);        
-        n_resamplings=sampleSum;
+        num_sample_blocks=scalerSum;
+        sample_num1=samples;
+        sample_num2=samples2;
       }
+
+      /*for (i=0;i<n_resampled_C1;i++) {
+        printf("C1 INDEX %d: %d\n",i,resampled_indices_C1[i]);
+      }
+      for (i=0;i<n_resampled_C2;i++) {
+        printf("C2 INDEX %d: %d\n",i,resampled_indices_C2[i]);
+      }*/
 
       short *d_resampling_C1, *d_resampling_C2;
       
@@ -843,6 +857,7 @@ int main(int argc, char *argv[]) {
 
       cudaEventRecord(start, 0);
       // printf("c = %d\n", c);
+      printf("SAMPLE1 = %d SAMPLES2 = %d\n", sample_num1, sample_num2);
 
 #if __DEBUG_EDDY__
         printf ("BEFORE RUN2\n");
@@ -855,9 +870,9 @@ int main(int argc, char *argv[]) {
         //     dstf, dout23, c, dpriorMatrix, alphaEdgePrior, alphaEdge,
         //     flag_pAdjust);
 
-        printf ("DE_RESAMP %d\n",n_resamplings);
-        determineEdges_resampled<<<n_resamplings, c>>>(d_resampling_C1, d_resampling_C2,
-                                 genes, samples, samples2, dtriA, dtriAb, dpriorMatrix, 
+        printf ("DE_RESAMP %d\n",num_sample_blocks);
+        determineEdges_resampled<<<num_sample_blocks, c>>>(d_resampling_C1, d_resampling_C2,
+                                 genes, samples, samples2, sample_num1, dtriA, dtriAb, dpriorMatrix, 
                                  alphaEdgePrior, alphaEdge, flag_pAdjust,
                                  dppn, dstf, dspacr, dff, ddofout, c, dout23);
       } else {
@@ -866,9 +881,9 @@ int main(int argc, char *argv[]) {
 
  	      printf("C (g*G/2) = %d\n",c);
         printf("launching with %d blocks per network and %d threads per block\n", BPN, TPB);
-        determineEdges_resampled_scalable<<<n_resamplings * BPN, TPB>>>(
+        determineEdges_resampled_scalable<<<num_sample_blocks * BPN, TPB>>>(
             d_resampling_C1, d_resampling_C2,
-            genes, samples, samples2, dtriA, dtriAb, dpriorMatrix, 
+            genes, samples, samples2, sample_num1, dtriA, dtriAb, dpriorMatrix, 
             alphaEdgePrior, alphaEdge, flag_pAdjust, 
             dppn, dstf, dspacr, dff, ddofout, c, dout23,
             BPN, TPB);
@@ -917,11 +932,11 @@ int main(int argc, char *argv[]) {
         edgeListData2 = (int *)malloc(sizeof(int) * c);
 
         // host array to transfer output of run2 to edgeListData1/edgeListData2
-        int *tempOut23 = (int *)malloc(sizeof(int) * c * scalerSum);
+        int *tempOut23 = (int *)malloc(sizeof(int) * c * num_sample_blocks);
 
         // printf ("LINE NUMBER 811\n");
         // copy binary data back to CPU
-        HANDLE_ERROR(cudaMemcpy(tempOut23, dout23, sizeof(int) * c * scalerSum,
+        HANDLE_ERROR(cudaMemcpy(tempOut23, dout23, sizeof(int) * c * num_sample_blocks,
                                 cudaMemcpyDeviceToHost));
         printf ("LINE NUMBER 815\n");
 
@@ -932,7 +947,7 @@ int main(int argc, char *argv[]) {
         }
         int count = 0;
         // last network in 2nd class - no samples left out
-        for (int i = (scalerSum - 1) * c; i < (scalerSum)*c; i++) {
+        for (int i = (num_sample_blocks - 1) * c; i < (num_sample_blocks)*c; i++) {
           edgeListData2[count++] = tempOut23[i];
         }
 
@@ -959,7 +974,7 @@ int main(int argc, char *argv[]) {
       HANDLE_ERROR(cudaMalloc((void **)&dsrchAry, genes * sizeof(int)));
       HANDLE_ERROR(cudaMemcpy(dsrchAry, searcher, genes * sizeof(int),
                               cudaMemcpyHostToDevice));
-      tempEdgesSums = (int *)calloc(sampleSum + 1, sizeof(int));
+      tempEdgesSums = (int *)calloc(num_sample_blocks + 1, sizeof(int));
 
       free(searcher);
       searcher = NULL;
@@ -973,7 +988,7 @@ int main(int argc, char *argv[]) {
       // edgePerNetworkKernel << < sampleSum + 1, c, (c * sizeof(int)) >>
       // >(dout23, dedgesPN, dsrchAry, genes, MAX_PARENTS, c);
       printf("BEFORE EPN KERNEL\n");
-      edgePerNetworkKernel<<<sampleSum, 1>>>(dout23, dedgesPN, dsrchAry,
+      edgePerNetworkKernel<<<num_sample_blocks, 1>>>(dout23, dedgesPN, dsrchAry,
                                                  genes, MAX_PARENTS, c);
       HANDLE_ERROR(cudaDeviceSynchronize());
       printf("edgesPerNetworkKernel finished\n");
@@ -983,11 +998,11 @@ int main(int argc, char *argv[]) {
 
       // copy edge sums over to CPU to calculate prefix sum for edgesPN
       HANDLE_ERROR(cudaMemcpy(tempEdgesSums, dedgesPN,
-                              sizeof(int) * (scalerSum + 1),
+                              sizeof(int) * (num_sample_blocks + 1),
                               cudaMemcpyDeviceToHost));
 
       edgesPN[0] = 0;
-      for (int i = 1; i < sampleSum + 1; i++) {
+      for (int i = 1; i < num_sample_blocks + 1; i++) {
         edgesPN[i] =
             edgesPN[i - 1] + tempEdgesSums[i - 1]; // prefix sum calculation
       }
@@ -996,15 +1011,15 @@ int main(int argc, char *argv[]) {
       tempEdgesSums = NULL;
       // edgesPN on the CPU is now fixed but dedgesPN is used later- copy
       // edgesPN results back to GPU memory
-      HANDLE_ERROR(cudaMemcpy(dedgesPN, edgesPN, sizeof(int) * (sampleSum + 1),
+      HANDLE_ERROR(cudaMemcpy(dedgesPN, edgesPN, sizeof(int) * (num_sample_blocks + 1),
                               cudaMemcpyHostToDevice));
 
-      /*
-         for (int i = 0; i < scalerSum + 1; i++)
+     /* 
+         for (int i = 0; i < num_sample_blocks + 1; i++)
          {
          printf("edgesPN[%d] : %d\n", i, edgesPN[i]);
-         }
-       */
+         }*/
+       
       // exit(EXIT_FAILURE);
 
       errSync = cudaGetLastError();
@@ -1031,7 +1046,8 @@ int main(int argc, char *argv[]) {
       dspacr = NULL; // cudaFree(dtriA); cudaFree(dtriAb);-used later in run4
       /***********************************************************************************************************************************************************/
       // total number of edges
-      int numEdges = edgesPN[scalerSum];
+      int numEdges = edgesPN[num_sample_blocks];
+      printf("NUMEDGES = %d\n",numEdges);
 
       // int N = c;
       // int M = genesetlength - 1;
@@ -1047,7 +1063,7 @@ int main(int argc, char *argv[]) {
       int *dpEdges, *dpNodes;
 
       // mem reqs
-      int nodeSize = sizeof(int) * (noNodes * (scalerSum));
+      int nodeSize = sizeof(int) * (noNodes * (num_sample_blocks));
       int edgeSize = sizeof(int) * numEdges;
 
       // space alloc for device
@@ -1064,16 +1080,17 @@ int main(int argc, char *argv[]) {
       //}
       // fclose(edgePNFile);
       printf("run22 started\n");
-      run22<<<scalerSum, noNodes>>>(c, dedgesPN, dout23, dpNodes, noNodes,
+      run22<<<num_sample_blocks, noNodes>>>(c, dedgesPN, dout23, dpNodes, noNodes,
                                     numEdges, dsrchAry, dpEdges, MAX_PARENTS);
       printf("run22 finished\n");
+      printf("NODE SIZE=%d\n",nodeSize);
 
       HANDLE_ERROR(
           cudaMemcpy(pNodes, dpNodes, nodeSize, cudaMemcpyDeviceToHost));
       HANDLE_ERROR(
           cudaMemcpy(pEdges, dpEdges, edgeSize, cudaMemcpyDeviceToHost));
 
-      /*for (int i = 0; i < nodeSize / sizeof(int); i++)
+/*      for (int i = 0; i < nodeSize / sizeof(int); i++)
          {
          if (i > edgeSize / sizeof(int))
          {
@@ -1084,6 +1101,10 @@ int main(int argc, char *argv[]) {
          printf("nodes[%d] : %d edges[%d] : %d\n", i, pNodes[i], i, pEdges[i]);
          }
          } */
+         i=1189;
+         printf("nodes[%d] : %d edges[%d] : %d\n", i, pNodes[i], i, pEdges[i]);
+         i=1190;
+         printf("nodes[%d] : %d edges[%d] : %d\n", i, pNodes[i], i, pEdges[i]);
 
       /*if (permNum == 0)
          {
@@ -1099,7 +1120,7 @@ int main(int argc, char *argv[]) {
          } */
 
       // ensure parent limit
-      checkParentLimit(scalerSum, noNodes, MAX_PARENTS, pNodes,
+      checkParentLimit(num_sample_blocks, noNodes, MAX_PARENTS, pNodes,
                        nodeSize / sizeof(int));
       /*for (int i = 0; i < nodeSize / sizeof(int); i++)
          {
@@ -1134,7 +1155,8 @@ int main(int argc, char *argv[]) {
       // 22**********************************************************************************************/
 
       // start processs to identify unique networks
-      int scalerCombo = (scalerSum * scalerSum - scalerSum) / 2;
+      //int scalerCombo = (scalerSum * scalerSum - scalerSum) / 2;
+      int scalerCombo = (num_sample_blocks * num_sample_blocks - num_sample_blocks) / 2;
       // host
       int *scalerTest; // compare value
       int *shrunk;
@@ -1144,7 +1166,7 @@ int main(int argc, char *argv[]) {
       shrunkPlc = (int *)malloc(sizeof(int) * scalerCombo);
 
       // see line 132 for more info
-      idPrep(scalerSum, scalerCombo, scalerTest, shrunkPlc);
+      idPrep(num_sample_blocks, scalerCombo, scalerTest, shrunkPlc);
 
       // dev copies
       // launch for run 25
@@ -1171,7 +1193,7 @@ int main(int argc, char *argv[]) {
       // printf("%/ max: %d   ", maxBlocks*maxThreads);
       // printf("\n");
       run25<<<(scalerCombo / (maxThreads - 1)) + 1, maxThreads - 1>>>(
-          samples + 1, scalerSum, numEdges, genesetLength, scalerCombo,
+          sample_num1 + 1, num_sample_blocks, numEdges, genesetLength, scalerCombo,
           dedgesPN, dpNodes, dpEdges, dshrunk, dscalerTest, dshnkplc);
       // printf("run25 finished\n");
       //*********************************************************************************************
@@ -1196,17 +1218,17 @@ int main(int argc, char *argv[]) {
       bool *uniqueN, *visted;
 
       // routine for creatation of unique structures
-      uniqueN = (bool *)malloc(sizeof(bool) * scalerSum);
+      uniqueN = (bool *)malloc(sizeof(bool) * num_sample_blocks);
 
       uniqueN[0] = true;
-      visted = (bool *)malloc(sizeof(bool) * scalerSum);
+      visted = (bool *)malloc(sizeof(bool) * num_sample_blocks);
       visted[0] = true;
 
-      for (int p = 0; p < scalerSum; p++) {
+      for (int p = 0; p < num_sample_blocks; p++) {
         visted[p] = false;
       }
       for (int p = 0; p < scalerCombo; p++) {
-        assert(scalerTest[p] < scalerSum);
+        assert(scalerTest[p] < num_sample_blocks);
         if (visted[scalerTest[p]] == true) {
           continue;
         } else {
@@ -1222,9 +1244,9 @@ int main(int argc, char *argv[]) {
       // grab network ids from 1st permutation before unique graphs are
       // identified- used when network file is written
       if (permNum == 0) {
-        uniqueNetIds = (int *)malloc(sizeof(int) * scalerSum);
+        uniqueNetIds = (int *)malloc(sizeof(int) * num_sample_blocks);
         int counter = 0;
-        for (int i = 0; i < scalerSum; i++) {
+        for (int i = 0; i < num_sample_blocks; i++) {
           if (uniqueN[i]) {
             uniqueNetIds[counter++] = i;
           }
@@ -1241,17 +1263,17 @@ int main(int argc, char *argv[]) {
 
       int unisum = 0;
       int edSum = 0;
-      // should it be scalerSum or scalerSum + 1?
-      for (int p = 0; p < scalerSum; p++) {
+      // should it be num_sample_blocks or snum_sample_blocks + 1?
+      for (int p = 0; p < num_sample_blocks; p++) {
 
         if (uniqueN[p] == 1) {
           unisum++;
-          if (p == scalerSum - 1) {
-            assert(p < scalerSum + 1);
+          if (p == num_sample_blocks - 1) {
+            assert(p < num_sample_blocks + 1);
             edSum = edSum + (numEdges - edgesPN[p]);
 
           } else {
-            assert(p < scalerSum + 1);
+            assert(p < num_sample_blocks + 1);
             edSum = edSum + edgesPN[p + 1] - edgesPN[p];
           }
         }
@@ -1275,7 +1297,7 @@ int main(int argc, char *argv[]) {
       pUniEpn = (int *)malloc(sizeof(int) * uniEpnSize);
       // printf("size of pUniEpn : %d\n", uniEpnSize);
 
-      structureUnique(unisum, numEdges, scaler, scalerSum, noNodes, uniqueN,
+      structureUnique(unisum, numEdges, sample_num1+1, num_sample_blocks, noNodes, uniqueN,
                       edgesPN, pEdges, pNodes, pUniEdges, pUniNodes, pUniEpn);
       // printf("structureUnique (NOT A KERNEL) finished\n");
       /*for (int i = 0; i < uniEpnSize; i++)
