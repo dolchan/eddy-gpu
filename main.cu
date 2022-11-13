@@ -499,6 +499,10 @@ int main(int argc, char *argv[]) {
     // adjust # of genes
     genesetLength = indexPos;
     printf("Adjusted genes : %d\n", genesetLength);
+    if (genesetLength < 3) {
+        printf ("Cannot process fewer than 3 genes.\n");
+        continue;
+    }
 
     // prior knowledge load data into binary
     // matrix-------------------------------------------------------------
@@ -623,8 +627,8 @@ int main(int argc, char *argv[]) {
       n = 0;
 
       int *randNums = (int *)malloc(sizeof(int) * numSamples);
-      for (int c = 0; c < mems; c++) {
-        randNums[c] = rand() % mems;
+      for (int ppp = 0; ppp < mems; ppp++) {
+        randNums[ppp] = rand() % mems;
       }
 
       while (n < mems) {
@@ -696,7 +700,8 @@ int main(int argc, char *argv[]) {
       int samples = numClass1;
       int samples2 = numClass2;
 
-      int c = (((genes * genes) - genes) / 2);
+      //int c = (((genes * genes) - genes) / 2);
+      int possible_edges = (((genes * genes) - genes) / 2);
 
       int scaler = (samples + 1);
       int scaler2 = (samples2 + 1);
@@ -704,11 +709,28 @@ int main(int argc, char *argv[]) {
       int num_sample_blocks;
       int sample_num1, sample_num2;
 
+      // resampling indices
+      //
+      if (prop_resampling > 0) {
+        construct_proportional_resampling_indices(n_resamplings, samples, prop_resampling, resampled_indices_C1);
+        construct_proportional_resampling_indices(n_resamplings, samples2, prop_resampling, resampled_indices_C2);        
+        num_sample_blocks=n_resamplings*2+2;
+        sample_num1=n_resamplings;
+        sample_num2=n_resamplings;
+      } else {
+        printf("Leave one out resampling\n");
+        construct_leave_one_out_resampling_indices(samples, resampled_indices_C1);
+        construct_leave_one_out_resampling_indices(samples2, resampled_indices_C2);        
+        num_sample_blocks=scalerSum;
+        sample_num1=samples;
+        sample_num2=samples2;
+      }
+
       int *spacer1; // dyn
-      spacer1 = (int *)malloc(c * sizeof(int));
+      spacer1 = (int *)malloc(possible_edges * sizeof(int));
       int *ff1; // dyn
       int *searcher;
-      ff1 = (int *)malloc(c * sizeof(int));
+      ff1 = (int *)malloc(possible_edges * sizeof(int));
       searcher = (int *)malloc(genes * sizeof(int));
 
       // determines diaganol representation of data matrix
@@ -716,7 +738,7 @@ int main(int argc, char *argv[]) {
       int position = 0;
       for (int row = 1; row < genes; row++) {
         for (int col = 0; col < row; col++) {
-          assert(position < c);
+          assert(position < possible_edges);
           spacer1[position] = row;
           // printf("spacer1[%d] : %d\n", position, spacer1[position]);
           ff1[position] = col;
@@ -750,7 +772,7 @@ int main(int argc, char *argv[]) {
       // holds edge data in binary format
       // int onesSize = sizeof(double) * c * scalerSum;
       int *edgesPN;
-      edgesPN = (int *)malloc(sizeof(int) * (scalerSum + 1));
+      edgesPN = (int *)malloc(sizeof(int) * (num_sample_blocks + 1));
 
       // device copies for out23 and edgesPN
       int *dout23;
@@ -763,7 +785,8 @@ int main(int argc, char *argv[]) {
       int *dpriorMatrix;
 
       // mem sizes required
-      int size2 = c * ((samples2 + 1) + (samples + 1)) * sizeof(int);
+      //int size2 = possible_edges * ((samples2 + 1) + (samples + 1)) * sizeof(int);
+      int size2 = possible_edges * num_sample_blocks * sizeof(int);
       // int size3 = c*((samples2 + 1) + (samples + 1))*sizeof(double);
       int dppnLength = genesetLength * 2;
       ////space alloc for device
@@ -775,12 +798,15 @@ int main(int argc, char *argv[]) {
       HANDLE_ERROR(
           cudaMalloc((void **)&dstf, genesetLength * 2 * 3 * sizeof(int)));
       HANDLE_ERROR(cudaMalloc((void **)&ddofout, size2));
-      HANDLE_ERROR(cudaMalloc((void **)&dff, c * sizeof(int)));
-      HANDLE_ERROR(cudaMalloc((void **)&dspacr, c * sizeof(int)));
+      HANDLE_ERROR(cudaMalloc((void **)&dff, possible_edges * sizeof(int)));
+      HANDLE_ERROR(cudaMalloc((void **)&dspacr, possible_edges * sizeof(int)));
       // cudaMalloc((void **)&d_ones, onesSize);
-      HANDLE_ERROR(cudaMalloc((void **)&dout23, sizeof(int) * c * scalerSum));
+      HANDLE_ERROR(cudaMalloc((void **)&dout23, sizeof(int) * possible_edges * num_sample_blocks));
+
+      printf("DOUT23 allocated of size %d\n",possible_edges*num_sample_blocks);
+
       HANDLE_ERROR(
-          cudaMalloc((void **)&dedgesPN, sizeof(int) * (scalerSum + 1)));
+          cudaMalloc((void **)&dedgesPN, sizeof(int) * (num_sample_blocks + 1)));
 
       HANDLE_ERROR(cudaMalloc((void **)&dpriorMatrix,
                               sizeof(int) * genesetLength * genesetLength));
@@ -797,9 +823,9 @@ int main(int argc, char *argv[]) {
                               genes * samples2 * sizeof(int),
                               cudaMemcpyHostToDevice));
       HANDLE_ERROR(
-          cudaMemcpy(dff, ff1, c * sizeof(int), cudaMemcpyHostToDevice));
+          cudaMemcpy(dff, ff1, possible_edges * sizeof(int), cudaMemcpyHostToDevice));
       HANDLE_ERROR(
-          cudaMemcpy(dspacr, spacer1, c * sizeof(int), cudaMemcpyHostToDevice));
+          cudaMemcpy(dspacr, spacer1, possible_edges * sizeof(int), cudaMemcpyHostToDevice));
       HANDLE_ERROR(cudaMemcpy(dpriorMatrix, priorMatrix,
                               genesetLength * genesetLength * sizeof(int),
                               cudaMemcpyHostToDevice));
@@ -820,25 +846,6 @@ int main(int argc, char *argv[]) {
       // noStates_kernel <<<genes * 2, 1 >>>(genes, samples, samples2, dtriA,
       // dtriAb, dppn, dstf);
 
-
-
-      // resampling indices
-      //
-      if (prop_resampling > 0) {
-        construct_proportional_resampling_indices(n_resamplings, samples, prop_resampling, resampled_indices_C1);
-        construct_proportional_resampling_indices(n_resamplings, samples2, prop_resampling, resampled_indices_C2);        
-        num_sample_blocks=n_resamplings*2+2;
-        sample_num1=n_resamplings;
-        sample_num2=n_resamplings;
-      } else {
-        printf("Leave one out resampling\n");
-        construct_leave_one_out_resampling_indices(samples, resampled_indices_C1);
-        construct_leave_one_out_resampling_indices(samples2, resampled_indices_C2);        
-        num_sample_blocks=scalerSum;
-        sample_num1=samples;
-        sample_num2=samples2;
-      }
-
       /*for (i=0;i<n_resampled_C1;i++) {
         printf("C1 INDEX %d: %d\n",i,resampled_indices_C1[i]);
       }
@@ -854,16 +861,15 @@ int main(int argc, char *argv[]) {
       HANDLE_ERROR(cudaMemcpy(d_resampling_C1, resampled_indices_C1, sizeof(short)*n_resampled_C1, cudaMemcpyHostToDevice));
       HANDLE_ERROR(cudaMemcpy(d_resampling_C2, resampled_indices_C2, sizeof(short)*n_resampled_C2, cudaMemcpyHostToDevice));
 
-
       cudaEventRecord(start, 0);
-      // printf("c = %d\n", c);
+      printf("possible_edges = %d\n", possible_edges);
       printf("SAMPLE1 = %d SAMPLES2 = %d\n", sample_num1, sample_num2);
 
 #if __DEBUG_EDDY__
         printf ("BEFORE RUN2\n");
 #endif  /* __DEBUG_EDDY__ */
 
-      if (c < MAX_THREADS) {
+      if (possible_edges < MAX_THREADS) {
 
         // run2<<<sampleSum, c, genes * genes * sizeof(int)>>>(
         //     genes, samples, samples2, dtriA, dtriAb, dspacr, dff, ddofout, dppn,
@@ -871,21 +877,21 @@ int main(int argc, char *argv[]) {
         //     flag_pAdjust);
 
         printf ("DE_RESAMP %d\n",num_sample_blocks);
-        determineEdges_resampled<<<num_sample_blocks, c>>>(d_resampling_C1, d_resampling_C2,
+        determineEdges_resampled<<<num_sample_blocks, possible_edges>>>(d_resampling_C1, d_resampling_C2,
                                  genes, samples, samples2, sample_num1, dtriA, dtriAb, dpriorMatrix, 
                                  alphaEdgePrior, alphaEdge, flag_pAdjust,
-                                 dppn, dstf, dspacr, dff, ddofout, c, dout23);
+                                 dppn, dstf, dspacr, dff, ddofout, possible_edges, dout23);
       } else {
-        int BPN = ceil((c * 1.0) / MAX_THREADS);
-        int TPB = ceil((c * 1.0) / BPN);
+        int BPN = ceil((possible_edges * 1.0) / MAX_THREADS);
+        int TPB = ceil((possible_edges * 1.0) / BPN);
 
- 	      printf("C (g*G/2) = %d\n",c);
+ 	      printf("C (g*G/2) = %d\n",possible_edges);
         printf("launching with %d blocks per network and %d threads per block\n", BPN, TPB);
         determineEdges_resampled_scalable<<<num_sample_blocks * BPN, TPB>>>(
             d_resampling_C1, d_resampling_C2,
             genes, samples, samples2, sample_num1, dtriA, dtriAb, dpriorMatrix, 
             alphaEdgePrior, alphaEdge, flag_pAdjust, 
-            dppn, dstf, dspacr, dff, ddofout, c, dout23,
+            dppn, dstf, dspacr, dff, ddofout, possible_edges, dout23,
             BPN, TPB);
         //run2Scalable<<<sampleSum * BPN, TPB>>>(
         //    genes, samples, samples2, dtriA, dtriAb, dspacr, dff, ddofout, dppn,
@@ -913,8 +919,6 @@ int main(int argc, char *argv[]) {
          printf("stf[%d] : %d\n", i, tempStf[i]);
          } */
 
-
-
       // printf("run2 finished\n");
       cudaError_t errSync = cudaGetLastError();
       if (errSync != cudaSuccess) {
@@ -928,26 +932,27 @@ int main(int argc, char *argv[]) {
       if (permNum == 0) {
         // holds post run2 edge data for edge list calculations after
         // permutations
-        edgeListData1 = (int *)malloc(sizeof(int) * c);
-        edgeListData2 = (int *)malloc(sizeof(int) * c);
+        edgeListData1 = (int *)malloc(sizeof(int) * possible_edges);
+        edgeListData2 = (int *)malloc(sizeof(int) * possible_edges);
 
         // host array to transfer output of run2 to edgeListData1/edgeListData2
-        int *tempOut23 = (int *)malloc(sizeof(int) * c * num_sample_blocks);
+        
+        int *tempOut23 = (int *)malloc(sizeof(int) * possible_edges * num_sample_blocks);
 
-        // printf ("LINE NUMBER 811\n");
+        printf ("LINE NUMBER 940 %d \n", possible_edges*num_sample_blocks);
         // copy binary data back to CPU
-        HANDLE_ERROR(cudaMemcpy(tempOut23, dout23, sizeof(int) * c * num_sample_blocks,
+        HANDLE_ERROR(cudaMemcpy(tempOut23, dout23, sizeof(int) * possible_edges * num_sample_blocks,
                                 cudaMemcpyDeviceToHost));
-        printf ("LINE NUMBER 815\n");
+        printf ("LINE NUMBER 941\n");
 
         // first network in first class - no samples left out
-        for (int i = 0; i < c; i++) {
+        for (int i = 0; i < possible_edges; i++) {
           // load 1st network from class 1
           edgeListData1[i] = tempOut23[i];
         }
         int count = 0;
         // last network in 2nd class - no samples left out
-        for (int i = (num_sample_blocks - 1) * c; i < (num_sample_blocks)*c; i++) {
+        for (int i = (num_sample_blocks - 1) * possible_edges; i < (num_sample_blocks)*possible_edges; i++) {
           edgeListData2[count++] = tempOut23[i];
         }
 
@@ -964,6 +969,7 @@ int main(int argc, char *argv[]) {
 
         free(tempOut23);
         tempOut23 = NULL;
+        
       }
 
       int milliSecondsElapsed2 = getMilliSpan(start2);
@@ -989,7 +995,7 @@ int main(int argc, char *argv[]) {
       // >(dout23, dedgesPN, dsrchAry, genes, MAX_PARENTS, c);
       printf("BEFORE EPN KERNEL\n");
       edgePerNetworkKernel<<<num_sample_blocks, 1>>>(dout23, dedgesPN, dsrchAry,
-                                                 genes, MAX_PARENTS, c);
+                                                 genes, MAX_PARENTS, possible_edges);
       HANDLE_ERROR(cudaDeviceSynchronize());
       printf("edgesPerNetworkKernel finished\n");
       cudaEventRecord(PN_stop, 0);
@@ -1036,6 +1042,10 @@ int main(int argc, char *argv[]) {
       cudaEventElapsedTime(&PN_time, PN_start, PN_stop);
       // printf("edgesPerNetworkKernel time : %f\n", PN_time);
       // cudaFree(d_ones);
+      HANDLE_ERROR(cudaFree(d_resampling_C1));
+      d_resampling_C1 = NULL;
+      HANDLE_ERROR(cudaFree(d_resampling_C2));
+      d_resampling_C2 = NULL;
       HANDLE_ERROR(cudaFree(dpriorMatrix));
       dpriorMatrix = NULL;
       HANDLE_ERROR(cudaFree(ddofout));
@@ -1079,10 +1089,10 @@ int main(int argc, char *argv[]) {
       //      fprintf(edgePNFile, "edgesPN[%d] : %d\n", i, edgesPN[i]);
       //}
       // fclose(edgePNFile);
-      printf("run22 started\n");
-      run22<<<num_sample_blocks, noNodes>>>(c, dedgesPN, dout23, dpNodes, noNodes,
+      //printf("run22 started\n");
+      run22<<<num_sample_blocks, noNodes>>>(possible_edges, dedgesPN, dout23, dpNodes, noNodes,
                                     numEdges, dsrchAry, dpEdges, MAX_PARENTS);
-      printf("run22 finished\n");
+      //printf("run22 finished\n");
       printf("NODE SIZE=%d\n",nodeSize);
 
       HANDLE_ERROR(
@@ -1101,10 +1111,10 @@ int main(int argc, char *argv[]) {
          printf("nodes[%d] : %d edges[%d] : %d\n", i, pNodes[i], i, pEdges[i]);
          }
          } */
-         i=1189;
-         printf("nodes[%d] : %d edges[%d] : %d\n", i, pNodes[i], i, pEdges[i]);
-         i=1190;
-         printf("nodes[%d] : %d edges[%d] : %d\n", i, pNodes[i], i, pEdges[i]);
+         //i=1189;
+         //printf("nodes[%d] : %d edges[%d] : %d\n", i, pNodes[i], i, pEdges[i]);
+         //i=1190;
+         //printf("nodes[%d] : %d edges[%d] : %d\n", i, pNodes[i], i, pEdges[i]);
 
       /*if (permNum == 0)
          {
@@ -1403,17 +1413,17 @@ int main(int argc, char *argv[]) {
       cudaEventRecord(run4Start, 0);
       float run4Time;
 
-      printf("run 4 start: %d blocks %d threads\n",scaler*2,noNodes);
+      //printf("run 4 start: %d blocks %d threads\n",scaler*2,noNodes);
       run4<<<scaler * 2, noNodes>>>(scaler, dUniEpn, genesetLength, edSum,
                                     unisum, samples, samples2, dtriA, dtriAb,
                                     dpEdges2, dpNodes2, dppn, dstf, dNij, dNijk,
                                     dout5, dppnLength);
       HANDLE_ERROR(cudaDeviceSynchronize());
-      printf("run 4 finished\n");
+      //printf("run 4 finished\n");
       cudaEventRecord(run4End, 0);
       HANDLE_ERROR(cudaEventSynchronize(run4End));
       cudaEventElapsedTime(&run4Time, run4Start, run4End);
-      printf("run 4 time : %f\n", run4Time);
+      //printf("run 4 time : %f\n", run4Time);
 
       // space alloc host
       out5 = (double *)malloc(sizeof(double) * noNodes * scaler * 2);
